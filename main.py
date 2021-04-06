@@ -45,22 +45,24 @@ def get_parent_folder_id(root_path, filepath):
 def upload_file(path, filepath):
     realpath = path + filepath
     drive.load_file(filepath, realpath)
-
     # 创建目录
     parent_folder_id = get_parent_folder_id(ROOT_PATH, filepath)
     # 创建上传
-    create_post_json = drive.create(parent_folder_id)
-    if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
-        print_success('【{filename}】秒传成功！消耗{s}秒'.format(filename=drive.filename, s=time.time() - drive.start_time))
-        return True
-
-    upload_url = create_post_json['part_info_list'][0]['upload_url']
-    file_id = create_post_json['file_id']
-    upload_id = create_post_json['upload_id']
-    # 上传
-    drive.upload(upload_url)
-    # 提交
-    return drive.complete(file_id, upload_id)
+    if not drive.search(parent_folder_id):
+        print_info('未在远程目录中找到同名文件，准备上传')
+        create_post_json = drive.create(parent_folder_id)
+        if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
+            print_success('【{filename}】秒传成功！消耗{s}秒'.format(filename=drive.filename, s=time.time() - drive.start_time))
+            return True
+        upload_url = create_post_json['part_info_list'][0]['upload_url']
+        file_id = create_post_json['file_id']
+        upload_id = create_post_json['upload_id']
+        # 上传
+        drive.upload(upload_url)
+        # 提交
+        return drive.complete(file_id, upload_id)
+    else:
+        print_info('在远程目录中发现同名文件，已跳过，请忽略失败信息')
 
 
 def load_task():

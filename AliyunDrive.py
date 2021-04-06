@@ -28,6 +28,35 @@ class AliyunDrive:
         self.filename = None
         self.hash = None
 
+
+    def search(self, parent_folder_id):
+        post_payload = {
+            'drive_id': self.drive_id,
+            'limit': 100,
+            'order_by': 'updated_at DESC',
+            'query': "name match \"" + self.filename + '\"'
+        }
+        search_post = requests.post(
+            url='https://api.aliyundrive.com/v2/file/search',
+            headers=self.headers,
+            data=json.dumps(post_payload),
+            verify=False
+        )
+        search_post_json = search_post.json()
+        lst = search_post_json['items']
+        if not lst:
+            return False
+        else:
+            num = 0
+            list_num = len(lst) - 1
+            while not num > list_num:
+                if self.filename == lst[num].get('name'):
+                    if parent_folder_id == lst[num].get('parent_file_id'):
+                        return True
+                num += 1
+            else:
+                return False
+
     def load_file(self, filepath, realpath):
         self.start_time = time.time()
         self.filepath = filepath
