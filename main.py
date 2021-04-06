@@ -62,7 +62,8 @@ def upload_file(path, filepath):
         # 提交
         return drive.complete(file_id, upload_id)
     else:
-        print_info('在远程目录中发现同名文件，已跳过，请忽略失败信息')
+        print_info('在远程目录中发现同名文件，已跳过')
+        return True
 
 
 def load_task():
