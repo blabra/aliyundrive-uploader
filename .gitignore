@@ -6,3 +6,6 @@ filelist.json
 .idea
 __pycache__
 task.json
+venv
+log
+task.json

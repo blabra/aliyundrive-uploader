@@ -11,7 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from hashlib import sha1
 
-from common import print_warn, print_error, get_all_file_relative, print_info, print_success
+from common import print_warn, print_error, get_all_file_relative, print_info, print_success, create_finish_path
 
 if __name__ != '__main__':
     exit()
@@ -20,7 +20,6 @@ from AliyunDrive import AliyunDrive
 
 
 def get_parent_folder_id(root_path, filepath):
-    print_info('检索目录中')
     filepath_split = (root_path + filepath.lstrip(os.sep)).split(os.sep)
     del filepath_split[len(filepath_split) - 1]
     path_name = os.sep.join(filepath_split)
@@ -36,9 +35,6 @@ def get_parent_folder_id(root_path, filepath):
                 drive.folder_id_dict[parent_folder_name] = parent_folder_id
     else:
         parent_folder_id = drive.folder_id_dict[path_name]
-        print_info('已存在目录，无需创建')
-
-    print_info('目录id获取成功{parent_folder_id}'.format(parent_folder_id=parent_folder_id))
     return parent_folder_id
 
 
@@ -49,10 +45,10 @@ def upload_file(path, filepath):
     parent_folder_id = get_parent_folder_id(ROOT_PATH, filepath)
     # 创建上传
     if not drive.search(parent_folder_id):
-        print_info('未在远程目录中找到同名文件，准备上传')
         create_post_json = drive.create(parent_folder_id)
         if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
-            print_success('【{filename}】秒传成功！消耗{s}秒'.format(filename=drive.filename, s=time.time() - drive.start_time))
+            print_success(f'【{drive.filename}】秒传成功！消耗{time.time() - drive.start_time}')
+            create_finish_path(realpath, filepath, path)
             return True
         upload_url = create_post_json['part_info_list'][0]['upload_url']
         file_id = create_post_json['file_id']
@@ -60,9 +56,10 @@ def upload_file(path, filepath):
         # 上传
         drive.upload(upload_url)
         # 提交
-        return drive.complete(file_id, upload_id)
+        return drive.complete(file_id, upload_id, realpath, path, filepath)
     else:
-        print_info('在远程目录中发现同名文件，已跳过')
+        print_info(f'发现【{drive.filename}】，已跳过。消耗{time.time() - drive.start_time}')
+        create_finish_path(realpath, path, filepath)
         return True
 
 
@@ -116,8 +113,12 @@ else:
 
 FILE_PATH = FILE_PATH.replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep) + os.sep
 
-pool_executor = ThreadPoolExecutor(MAX_WORKERS)
+'''
 
+多线程有bug，请勿使用
+
+'''
+pool_executor = ThreadPoolExecutor(MAX_WORKERS)
 if MULTITHREADING:
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         future_list = []

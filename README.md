@@ -7,13 +7,20 @@
 > 
 > 禁止用于非法用途，违者后果自负
 
+
+## 小修改
+>
+> 添加了防止重复上传的小功能
+>
+> 自动移动已完成文件，防止出错后反复上传浪费时间
+>
 ## 环境要求
 * python3
 
 ## 使用方法
 ### 安装
 ```shell
-git clone https://github.com/Hidove/aliyundrive-uploader.git
+git clone https://github.com/blabra/aliyundrive-uploader.git
 cd aliyundrive-uploader
 pip install -r requirements.txt
 ```
@@ -47,7 +54,7 @@ python3 get-pip.py
 | DRIVE_ID       | 阿里云盘驱动ID，目前不知道做何使用的，可能后续官方有新想法吧 |                |   |
 | ROOT_PATH      | 阿里云盘目录                        |    我的照片      |   |
 | FILE_PATH      | 文件夹目录，填写绝对路径                    | D:\\Pictures\\ |   |
-| MULTITHREADING | 是否启用多线程| true/false     |   |
+| MULTITHREADING | 多线程未经测试，请慎用| true/false     |   |
 | MAX_WORKERS    | 线程池最大线程数，请根据自己机器填写              | 5              |   |
 
 > PS:如使用多线程上传，多任务并发，可能会造成网盘创建多个相同目录的问题，事后请自行检查删除

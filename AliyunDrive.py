@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # +-------------------------------------------------------------------
-# | 阿里云盘上传类
+# | 阿里云盘API
 # +-------------------------------------------------------------------
 # | Author: 李小恩 <i@abcyun.cc>
 # +-------------------------------------------------------------------
@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 requests.packages.urllib3.disable_warnings()
 from UploadChunksIterator import UploadChunksIterator
-from common import print_warn, print_info, print_error, print_success, get_hash
+from common import print_warn, print_info, print_error, print_success, get_hash, create_finish_path
 
 
 class AliyunDrive:
@@ -27,7 +27,6 @@ class AliyunDrive:
         self.realpath = None
         self.filename = None
         self.hash = None
-
 
     def search(self, parent_folder_id):
         post_payload = {
@@ -54,29 +53,21 @@ class AliyunDrive:
                     if parent_folder_id == lst[num].get('parent_file_id'):
                         return True
                 num += 1
-            else:
-                return False
+            return False
 
     def load_file(self, filepath, realpath):
         self.start_time = time.time()
         self.filepath = filepath
         self.realpath = realpath
         self.filename = os.path.basename(realpath)
-        print_info('【{filename}】正在校检文件中，耗时与文件大小有关'.format(filename=self.filename))
         self.hash = get_hash(self.realpath)
         self.filesize = os.path.getsize(self.realpath)
-        message = '''=================================================
-        文件名：{filename}
-        hash：{hash}
-        文件大小：{filesize}
-        文件路径：{filepath}
-=================================================
-'''.format(filename=self.filename, hash=self.hash, filesize=self.filesize, filepath=self.realpath)
-        print_info(message)
 
     def token_refresh(self):
         global post_json
-        data = {"refresh_token": self.refresh_token}
+        data = {"refresh_token": self.refresh_token,
+                "grant_type": "refresh_token"
+                }
         post = requests.post(
             'https://websv.aliyundrive.com/token/refresh',
             data=json.dumps(data),
@@ -125,11 +116,10 @@ class AliyunDrive:
         )
         create_post_json = create_post.json()
         if create_post_json.get('code') == 'AccessTokenInvalid':
-            print_info('AccessToken已失效，尝试刷新AccessToken中')
             if self.token_refresh():
-                print_info('AccessToken刷新成功，返回创建上传任务')
                 return self.create(parent_file_id)
-            print_error('无法刷新AccessToken，准备退出')
+            print(create_post_json.get('code'))
+            print_error('无法刷新AccessToken，准备退出。Step: Create')
             exit()
         return create_post_json
 
@@ -145,7 +135,7 @@ class AliyunDrive:
                 )
                 res.raise_for_status()
 
-    def complete(self, file_id, upload_id):
+    def complete(self, file_id, upload_id, realpath, path, filepath):
         complete_data = {
             "drive_id": self.drive_id,
             "file_id": file_id,
@@ -156,21 +146,19 @@ class AliyunDrive:
             headers=self.headers,
             verify=False
         )
-
         complete_post_json = complete_post.json()
         if complete_post_json.get('code') == 'AccessTokenInvalid':
-            print_info('AccessToken已失效，尝试刷新AccessToken中')
             if self.token_refresh():
-                print_info('AccessToken刷新成功，返回创建上传任务')
                 return self.complete(file_id, upload_id)
-            print_error('无法刷新AccessToken，准备退出')
+            print_error('无法刷新AccessToken，准备退出。Step: Complete')
             exit()
         s = time.time() - self.start_time
         if 'file_id' in complete_post_json:
-            print_success('【{filename}】上传成功！消耗{s}秒'.format(filename=self.filename, s=s))
+            print_success(f'【{self.filename}】上传成功！消耗{s}秒')
+            create_finish_path(realpath, path, filepath)
             return True
         else:
-            print_warn('【{filename}】上传失败！消耗{s}秒'.format(filename=self.filename, s=s))
+            print_warn(f'【{self.filename}】上传失败！消耗{s}秒')
             return False
 
     def create_folder(self, folder_name, parent_folder_id):
@@ -189,10 +177,8 @@ class AliyunDrive:
         )
         create_post_json = create_post.json()
         if create_post_json.get('code') == 'AccessTokenInvalid':
-            print_info('AccessToken已失效，尝试刷新AccessToken中')
             if self.token_refresh():
-                print_info('AccessToken刷新成功，返回创建上传任务')
                 return self.create_folder(folder_name, parent_folder_id)
-            print_error('无法刷新AccessToken，准备退出')
+            print_error('无法刷新AccessToken，准备退出。Step: Create Folder')
             exit()
         return create_post_json.get('file_id')
