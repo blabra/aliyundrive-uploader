@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 requests.packages.urllib3.disable_warnings()
 from UploadChunksIterator import UploadChunksIterator
-from common import print_warn, print_info, print_error, print_success, get_hash, create_finish_path
+from common import print_warn, print_info, print_error, print_success, get_hash, move_after_finish
 
 
 class AliyunDrive:
@@ -155,7 +155,7 @@ class AliyunDrive:
         s = time.time() - self.start_time
         if 'file_id' in complete_post_json:
             print_success(f'【{self.filename}】上传成功！消耗{s}秒')
-            create_finish_path(realpath, path, filepath)
+            move_after_finish(realpath, path, filepath)
             return True
         else:
             print_warn(f'【{self.filename}】上传失败！消耗{s}秒')

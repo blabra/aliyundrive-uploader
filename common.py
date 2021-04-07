@@ -47,7 +47,7 @@ def get_all_file_relative(path):
     return result
 
 
-def create_finish_path(realpath, path, filepath):
+def move_after_finish(realpath, path, filepath):
     if not os.path.exists(path + "/finish"):
         os.mkdir(path + "/finish")
     os.replace(realpath, path + "/finish/" + filepath)

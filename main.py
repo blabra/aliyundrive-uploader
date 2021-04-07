@@ -11,7 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from hashlib import sha1
 
-from common import print_warn, print_error, get_all_file_relative, print_info, print_success, create_finish_path
+from common import print_warn, print_error, get_all_file_relative, print_info, print_success, move_after_finish
 
 if __name__ != '__main__':
     exit()
@@ -48,7 +48,7 @@ def upload_file(path, filepath):
         create_post_json = drive.create(parent_folder_id)
         if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
             print_success(f'【{drive.filename}】秒传成功！消耗{time.time() - drive.start_time}')
-            create_finish_path(realpath, filepath, path)
+            move_after_finish(realpath, filepath, path)
             return True
         upload_url = create_post_json['part_info_list'][0]['upload_url']
         file_id = create_post_json['file_id']
@@ -59,7 +59,7 @@ def upload_file(path, filepath):
         return drive.complete(file_id, upload_id, realpath, path, filepath)
     else:
         print_info(f'发现【{drive.filename}】，已跳过。消耗{time.time() - drive.start_time}')
-        create_finish_path(realpath, path, filepath)
+        move_after_finish(realpath, path, filepath)
         return True
 
 
