@@ -7,6 +7,8 @@
 import io
 from typing import Union, Iterable
 from tqdm.utils import CallbackIOWrapper
+
+
 class UploadChunksIterator(Iterable):
 
     def __init__(
@@ -16,14 +18,17 @@ class UploadChunksIterator(Iterable):
         self.chunk_size = chunk_size
         self.total_size = total_size
 
+
     def __iter__(self):
         return self
+
 
     def __next__(self):
         data = self.file.read(self.chunk_size)
         if not data:
             raise StopIteration
         return data
+
 
     def __len__(self):
         return self.total_size
