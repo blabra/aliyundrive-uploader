@@ -41,7 +41,8 @@ class AliyunDrive:
             search_post = requests.post(
                 url='https://api.aliyundrive.com/v2/file/search',
                 headers=self.headers,
-                data=json.dumps(post_payload)
+                data=json.dumps(post_payload),
+                verify=False
             )
             search_post_json = search_post.json()
             lst = search_post_json['items']
@@ -80,7 +81,8 @@ class AliyunDrive:
             data=json.dumps(data),
             headers={
                 'content-type': 'application/json;charset=UTF-8'
-            }
+            },
+            verify=False
         )
         try:
             post_json = post.json()
@@ -118,7 +120,8 @@ class AliyunDrive:
             create_post = requests.post(
                 'https://api.aliyundrive.com/v2/file/create',
                 data=json.dumps(create_data),
-                headers=self.headers
+                headers=self.headers,
+                verify=False
             )
             create_post_json = create_post.json()
             if create_post_json.get('code') == 'AccessTokenInvalid':
@@ -158,7 +161,8 @@ class AliyunDrive:
             complete_post = requests.post(
                 url='https://api.aliyundrive.com/v2/file/complete',
                 data=json.dumps(complete_data),
-                headers=self.headers
+                headers=self.headers,
+                verify=False
             )
             complete_post_json = complete_post.json()
             if complete_post_json.get('code') == 'AccessTokenInvalid':
@@ -194,7 +198,8 @@ class AliyunDrive:
             create_post = requests.post(
                 'https://api.aliyundrive.com/v2/file/create',
                 data=json.dumps(create_data),
-                headers=self.headers
+                headers=self.headers,
+                verify=False
             )
             create_post_json = create_post.json()
             if create_post_json.get('code') == 'AccessTokenInvalid':
