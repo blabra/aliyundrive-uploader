@@ -1,6 +1,6 @@
 *.log
 log
-test.py
+*test*
 config.json
 filelist.json
 .idea
@@ -9,3 +9,4 @@ task.json
 venv
 log
 task.json
+finish

@@ -10,7 +10,7 @@ import sys
 import time
 # from concurrent.futures import ThreadPoolExecutor, as_completed
 from hashlib import sha1
-from common import print_warn, print_error, get_all_file_relative, print_info, print_success, move_after_finish
+from common import print_warn, print_error, get_all_file_relative, print_info, print_success, move_after_finish, date
 
 
 if __name__ != '__main__':
@@ -48,7 +48,7 @@ def upload_file(path, filepath):
         create_post_json = drive.create(parent_folder_id)
         if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
             print_success(f'【{drive.filename}】秒传成功！消耗{time.time() - drive.start_time}')
-            move_after_finish(realpath, path, filepath)
+            move_after_finish(realpath=realpath, path=path, filepath=filepath)
             return True
         upload_url = create_post_json['part_info_list'][0]['upload_url']
         file_id = create_post_json['file_id']
@@ -56,10 +56,10 @@ def upload_file(path, filepath):
         # 上传
         drive.upload(upload_url)
         # 提交
-        return drive.complete(file_id, upload_id, realpath, path, filepath)
+        return drive.complete(file_id=file_id, upload_id=upload_id, realpath=realpath, path=path, filepath=filepath)
     else:
         print_info(f'发现【{drive.filename}】，已跳过。消耗{time.time() - drive.start_time}')
-        move_after_finish(realpath, path, filepath)
+        move_after_finish(realpath=realpath, path=path, filepath=filepath)
         return True
 
 
@@ -77,7 +77,7 @@ def save_task(task):
         f.write(json.dumps(task))
         f.flush()
 
-
+StartTime = time.time()
 # 配置信息
 try:
     with open(os.getcwd() + '/config.json', 'rb') as f:
@@ -96,8 +96,22 @@ except Exception as e:
 drive = AliyunDrive(DRIVE_ID, ROOT_PATH, REFRESH_TOKEN)
 # 刷新token
 drive.token_refresh()
-# 命令行参数上传
-if len(sys.argv) == 2:
+# # 命令行参数上传
+if len(sys.argv) == 3:
+    ROOT_PATH = (sys.argv[2]).replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep) + os.sep
+    print(ROOT_PATH)
+    drive = AliyunDrive(DRIVE_ID, ROOT_PATH, REFRESH_TOKEN)
+    drive.token_refresh()
+    if os.path.isdir(sys.argv[1]):
+        # 目录上传
+        FILE_PATH = sys.argv[1]
+        file_list = get_all_file_relative(FILE_PATH)
+    else:
+        # 单文件上传
+        FILE_PATH = os.path.dirname(sys.argv[1])
+        file_list = [os.path.basename(sys.argv[1])]
+    task = {}
+elif len(sys.argv) == 2:
     if os.path.isdir(sys.argv[1]):
         # 目录上传
         FILE_PATH = sys.argv[1]
@@ -160,3 +174,9 @@ for file in file_list:
     else:
         print_warn(os.path.basename(file) + ' 已上传，无需重复上传')
 
+
+print(f'''=======================================================
+任务开始于{date(StartTime)},结束于{date(time.time())}
+共完成{len(file_list)}个文件
+耗时{round(((time.time() - StartTime) / 60), 2)}分钟
+=======================================================''')

@@ -37,23 +37,29 @@ class AliyunDrive:
             'order_by': 'updated_at DESC',
             'query': "name match " + f'\"{self.filename}\"'
         }
-        search_post = requests.post(
-            url='https://api.aliyundrive.com/v2/file/search',
-            headers=self.headers,
-            data=json.dumps(post_payload)
-        )
-        search_post_json = search_post.json()
-        lst = search_post_json['items']
-        if not lst:
-            return False
-        else:
-            num = 0
-            list_num = len(lst) - 1
-            while not num > list_num:
-                if self.filename == lst[num].get('name') and parent_folder_id == lst[num].get('parent_file_id'):
-                    return True
-                num += 1
-            return False
+        try:
+            search_post = requests.post(
+                url='https://api.aliyundrive.com/v2/file/search',
+                headers=self.headers,
+                data=json.dumps(post_payload)
+            )
+            search_post_json = search_post.json()
+            lst = search_post_json['items']
+            if not lst:
+                return False
+            else:
+                num = 0
+                list_num = len(lst) - 1
+                while not num > list_num:
+                    if self.filename == lst[num].get('name') and parent_folder_id == lst[num].get('parent_file_id'):
+                        return True
+                    num += 1
+                return False
+        except Exception as e:
+            print(e)
+            print_warn('Step: Search 发生错误，程序将在暂停60秒后继续执行')
+            time.sleep(60)
+            return parent_folder_id
 
 
     def load_file(self, filepath, realpath):
@@ -108,23 +114,29 @@ class AliyunDrive:
             "type": "file",
             "size": self.filesize
         }
-        create_post = requests.post(
-            'https://api.aliyundrive.com/v2/file/create',
-            data=json.dumps(create_data),
-            headers=self.headers
-        )
-        create_post_json = create_post.json()
-        if create_post_json.get('code') == 'AccessTokenInvalid':
-            if self.token_refresh():
-                return self.create(parent_file_id)
-            print(create_post_json.get('code'))
-            print_error('无法刷新AccessToken，准备退出。Step: Create')
-            exit()
-        return create_post_json
+        try:
+            create_post = requests.post(
+                'https://api.aliyundrive.com/v2/file/create',
+                data=json.dumps(create_data),
+                headers=self.headers
+            )
+            create_post_json = create_post.json()
+            if create_post_json.get('code') == 'AccessTokenInvalid':
+                if self.token_refresh():
+                    return self.create(parent_file_id)
+                print(create_post_json.get('code'))
+                print_error('无法刷新AccessToken，准备退出。Step: Create')
+                exit()
+            return create_post_json
+        except Exception as e:
+            print(e)
+            print_warn('Step: Create 发生错误，程序将在暂停60秒后继续执行')
+            time.sleep(60)
+            return parent_folder_id
 
 
     def upload(self, upload_url):
-        with open(self.real_path, "rb") as f:
+        with open(self.realpath, "rb") as f:
             total_size = os.fstat(f.fileno()).st_size
             f = tqdm.wrapattr(f, "read", desc='正在上传', miniters=1, total=total_size, ascii=True)
             with f as f_iter:
@@ -142,26 +154,32 @@ class AliyunDrive:
             "file_id": file_id,
             "upload_id": upload_id
         }
-        complete_post = requests.post(
-            url='https://api.aliyundrive.com/v2/file/complete',
-            data=json.dumps(complete_data),
-            headers=self.headers
-        )
-        complete_post_json = complete_post.json()
-        if complete_post_json.get('code') == 'AccessTokenInvalid':
-            if self.token_refresh():
-                return self.complete(file_id, upload_id, realpath, path, filepath)
-            print_error('无法刷新AccessToken，准备退出。Step: Complete')
-            print(complete_post_json.get('code'))
-            exit()
-        s = time.time() - self.start_time
-        if 'file_id' in complete_post_json:
-            print_success(f'【{self.filename}】上传成功！消耗{s}秒')
-            move_after_finish(realpath, path, filepath)
-            return True
-        else:
-            print_warn(f'【{self.filename}】上传失败！消耗{s}秒')
-            return False
+        try:
+            complete_post = requests.post(
+                url='https://api.aliyundrive.com/v2/file/complete',
+                data=json.dumps(complete_data),
+                headers=self.headers
+            )
+            complete_post_json = complete_post.json()
+            if complete_post_json.get('code') == 'AccessTokenInvalid':
+                if self.token_refresh():
+                    return self.complete(file_id, upload_id, realpath, path, filepath)
+                print_error('无法刷新AccessToken，准备退出。Step: Complete')
+                print(complete_post_json.get('code'))
+                exit()
+            s = time.time() - self.start_time
+            if 'file_id' in complete_post_json:
+                print_success(f'【{self.filename}】上传成功！消耗{s}秒')
+                move_after_finish(realpath=realpath, path=path, filepath=filepath)
+                return True
+            else:
+                print_warn(f'【{self.filename}】上传失败！消耗{s}秒')
+                return False
+        except Exception as e:
+            print(e)
+            print_warn('Step: Complete 发生错误，程序将在暂停60秒后继续执行')
+            time.sleep(60)
+            return file_id, upload_id, realpath, path, filepath
 
 
     def create_folder(self, folder_name, parent_folder_id):
@@ -172,16 +190,22 @@ class AliyunDrive:
             "check_name_mode": "refuse",
             "type": "folder"
         }
-        create_post = requests.post(
-            'https://api.aliyundrive.com/v2/file/create',
-            data=json.dumps(create_data),
-            headers=self.headers
-        )
-        create_post_json = create_post.json()
-        if create_post_json.get('code') == 'AccessTokenInvalid':
-            if self.token_refresh():
-                return self.create_folder(folder_name, parent_folder_id)
-            print_error('无法刷新AccessToken，准备退出。Step: Create Folder')
-            print(create_post_json.get('code'))
-            exit()
-        return create_post_json.get('file_id')
+        try:
+            create_post = requests.post(
+                'https://api.aliyundrive.com/v2/file/create',
+                data=json.dumps(create_data),
+                headers=self.headers
+            )
+            create_post_json = create_post.json()
+            if create_post_json.get('code') == 'AccessTokenInvalid':
+                if self.token_refresh():
+                    return self.create_folder(folder_name, parent_folder_id)
+                print_error('无法刷新AccessToken，准备退出。Step: Create Folder')
+                print(create_post_json.get('code'))
+                exit()
+            return create_post_json.get('file_id')
+        except Exception as e:
+            print(e)
+            print_warn('Step: Create_Folder 发生错误，程序将在暂停60秒后继续执行')
+            time.sleep(60)
+            return folder_name, parent_folder_id

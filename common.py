@@ -25,11 +25,12 @@ def get_all_file(path):
     result = []
     get_dir = os.listdir(path)
     for i in get_dir:
-        sub_dir = os.path.join(path, i)
-        if os.path.isdir(sub_dir):
-            result.extend(get_all_file(sub_dir))
-        else:
-            result.append(sub_dir)
+        if not i == 'finish':
+            sub_dir = os.path.join(path, i)
+            if os.path.isdir(sub_dir):
+                result.extend(get_all_file(sub_dir))
+            else:
+                result.append(sub_dir)
     return result
 
 
@@ -37,13 +38,14 @@ def get_all_file_relative(path):
     result = []
     get_dir = os.listdir(path)
     for i in get_dir:
-        sub_dir = os.path.join(path, i)
-        if os.path.isdir(sub_dir):
-            all_file = get_all_file_relative(sub_dir)
-            all_file = map(lambda x: i + os.sep + x, all_file)
-            result.extend(all_file)
-        else:
-            result.append(i)
+        if not i == 'finish':
+            sub_dir = os.path.join(path, i)
+            if os.path.isdir(sub_dir):
+                all_file = get_all_file_relative(sub_dir)
+                all_file = map(lambda x: i + os.sep + x, all_file)
+                result.extend(all_file)
+            else:
+                result.append(i)
     return result
 
 
