@@ -10,7 +10,7 @@ import sys
 import time
 # from concurrent.futures import ThreadPoolExecutor, as_completed
 from hashlib import sha1
-from common import print_warn, print_error, get_all_file_relative, print_info, print_success, move_after_finish, date
+from common import print_warn, print_error, print_info, print_success, date, format_path
 
 
 if __name__ != '__main__':
@@ -39,16 +39,15 @@ def get_parent_folder_id(root_path, filepath):
 
 
 def upload_file(path, filepath):
-    realpath = path + filepath
+    realpath = os.path.join(path, filepath)
     drive.load_file(filepath, realpath)
     # 创建目录
-    parent_folder_id = get_parent_folder_id(ROOT_PATH, filepath)
+    parent_folder_id = get_parent_folder_id(R_PATH, filepath)
     # 创建上传
     if not drive.search(parent_folder_id):
         create_post_json = drive.create(parent_folder_id)
         if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
             print_success(f'【{drive.filename}】秒传成功！消耗{time.time() - drive.start_time}')
-            move_after_finish(realpath=realpath, path=path, filepath=filepath)
             return True
         upload_url = create_post_json['part_info_list'][0]['upload_url']
         file_id = create_post_json['file_id']
@@ -56,26 +55,11 @@ def upload_file(path, filepath):
         # 上传
         drive.upload(upload_url)
         # 提交
-        return drive.complete(file_id=file_id, upload_id=upload_id, realpath=realpath, path=path, filepath=filepath)
+        return drive.complete(file_id=file_id, upload_id=upload_id)
     else:
         print_info(f'发现【{drive.filename}】，已跳过。消耗{time.time() - drive.start_time}')
-        move_after_finish(realpath=realpath, path=path, filepath=filepath)
         return True
 
-
-def load_task():
-    try:
-        with open(os.getcwd() + '/task.json', 'r') as f:
-            task = f.read()
-            return json.loads(task)
-    except:
-        return {}
-
-
-def save_task(task):
-    with open(os.getcwd() + '/task.json', 'w') as f:
-        f.write(json.dumps(task))
-        f.flush()
 
 StartTime = time.time()
 # 配置信息
@@ -83,9 +67,7 @@ try:
     with open(os.getcwd() + '/config.json', 'rb') as f:
         config = json.loads(f.read())
         REFRESH_TOKEN = config.get('REFRESH_TOKEN')
-        FILE_PATH = config.get('FILE_PATH')
         DRIVE_ID = config.get('DRIVE_ID')
-        ROOT_PATH = config.get('ROOT_PATH').replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep) + os.sep
         # 启用多线程
         # MULTITHREADING = False  # bool(config.get('MULTITHREADING'))
         # 线程池最大线程数
@@ -93,39 +75,56 @@ try:
 except Exception as e:
     print_error('请配置好config.json后重试')
     raise e
-drive = AliyunDrive(DRIVE_ID, ROOT_PATH, REFRESH_TOKEN)
-# 刷新token
-drive.token_refresh()
-# # 命令行参数上传
-if len(sys.argv) == 3:
-    ROOT_PATH = (sys.argv[2]).replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep) + os.sep
-    print(ROOT_PATH)
-    drive = AliyunDrive(DRIVE_ID, ROOT_PATH, REFRESH_TOKEN)
-    drive.token_refresh()
-    if os.path.isdir(sys.argv[1]):
-        # 目录上传
-        FILE_PATH = sys.argv[1]
-        file_list = get_all_file_relative(FILE_PATH)
-    else:
-        # 单文件上传
-        FILE_PATH = os.path.dirname(sys.argv[1])
-        file_list = [os.path.basename(sys.argv[1])]
-    task = {}
-elif len(sys.argv) == 2:
-    if os.path.isdir(sys.argv[1]):
-        # 目录上传
-        FILE_PATH = sys.argv[1]
-        file_list = get_all_file_relative(FILE_PATH)
-    else:
-        # 单文件上传
-        FILE_PATH = os.path.dirname(sys.argv[1])
-        file_list = [os.path.basename(sys.argv[1])]
-    task = {}
-else:
-    file_list = get_all_file_relative(FILE_PATH)
-    task = load_task()
 
-FILE_PATH = FILE_PATH.replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep) + os.sep
+
+if len(sys.argv) == 3:
+    if os.path.isdir(sys.argv[1]):
+        # 目录上传
+        for root, dirs, files in os.walk(sys.argv[1], topdown=True):
+            # 上传嵌套目录下的文件
+            for dir in dirs:
+                # 重定位本地待上传目录
+                L_PATH = format_path(os.path.join(root, dir))
+                # 保持远程目录与本地目录结构相同
+                full_rpath = sys.argv[2] + os.sep + os.path.join(root, dir).replace(sys.argv[1], '').lstrip(os.sep)
+                R_PATH = format_path(full_rpath)
+                file_list = []
+                for file in os.listdir(os.path.join(root, dir)):
+                    fullpath = os.path.join(L_PATH, file)
+                    if os.path.isfile(fullpath):
+                        file_list.append(file)
+                drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
+                drive.token_refresh()
+                for file in file_list:
+                    upload_file(L_PATH, file)
+            # 上传一级目录文件
+            file_list = []
+            for file in files:
+                if root == sys.argv[1]:
+                    file_list.append(file)
+            L_PATH = format_path(sys.argv[1])
+            R_PATH = format_path(sys.argv[2])
+            drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
+            drive.token_refresh()
+            for file in file_list:
+                upload_file(L_PATH, file)
+    else:
+        # 单文件上传
+        L_PATH = os.path.dirname(sys.argv[1])
+        R_PATH = format_path(sys.argv[2])
+        drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
+        drive.token_refresh()
+        upload_file(L_PATH, os.path.basename(sys.argv[1]))
+else:
+    print('请正确输入参数后再运行')
+    exit()
+
+# 共完成{len(file_list)}个文件
+print(f'''=======================================================
+任务开始于{date(StartTime)},结束于{date(time.time())}
+
+耗时{round(((time.time() - StartTime) / 60), 2)}分钟
+=======================================================''')
 
 '''
 
@@ -146,37 +145,33 @@ FILE_PATH = FILE_PATH.replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep
 #                 task[hexdigest] = tmp
 #                 if task[hexdigest]['upload_time'] <= 0:
 #                     # 提交线程
-#                     future = executor.submit(upload_file, FILE_PATH, file)
+#                     future = executor.submit(upload_file, L_PATH, file)
 #                     future_list.append(future)
 #             else:
 #                 print_warn(os.path.basename(file) + ' 已上传，无需重复上传')
-#
+
 #         for res in as_completed(future_list):
 #             if res.result():
 #                 task[hexdigest]['upload_time'] = time.time()
 #                 save_task(task)
 #             else:
 #                 print_error(os.path.basename(file) + ' 上传失败')
-for file in file_list:
-    tmp = {
-        "filepath": file,
-        "upload_time": 0
-    }
-    hexdigest = sha1(file.encode('utf-8')).hexdigest()
-    if not hexdigest in task:
-        task[hexdigest] = tmp
-        if task[hexdigest]['upload_time'] <= 0:
-            if upload_file(FILE_PATH, file):
-                task[hexdigest]['upload_time'] = time.time()
-                save_task(task)
-            else:
-                print_error(os.path.basename(file) + ' 上传失败')
-    else:
-        print_warn(os.path.basename(file) + ' 已上传，无需重复上传')
+# else:
+#     for file in file_list:
+#         tmp = {
+#             "filepath": file,
+#             "upload_time": 0
+#         }
+#         hexdigest = sha1(file.encode('utf-8')).hexdigest()
+#         if not hexdigest in task:
+#             task[hexdigest] = tmp
+#             if task[hexdigest]['upload_time'] <= 0:
+#                 if upload_file(L_PATH, file):
+#                     task[hexdigest]['upload_time'] = time.time()
+#                     save_task(task)
+#                 else:
+#                     print_error(os.path.basename(file) + ' 上传失败')
+#         else:
+#             print_warn(os.path.basename(file) + ' 已上传，无需重复上传')
 
 
-print(f'''=======================================================
-任务开始于{date(StartTime)},结束于{date(time.time())}
-共完成{len(file_list)}个文件
-耗时{round(((time.time() - StartTime) / 60), 2)}分钟
-=======================================================''')

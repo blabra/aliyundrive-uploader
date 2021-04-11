@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 requests.packages.urllib3.disable_warnings()
 from UploadChunksIterator import UploadChunksIterator
-from common import print_warn, print_info, print_error, print_success, get_hash, move_after_finish
+from common import print_warn, print_info, print_error, print_success, get_hash
 
 
 class AliyunDrive:
@@ -48,14 +48,13 @@ class AliyunDrive:
             lst = search_post_json['items']
             if not lst:
                 return False
-            else:
-                num = 0
-                list_num = len(lst) - 1
-                while not num > list_num:
-                    if self.filename == lst[num].get('name') and parent_folder_id == lst[num].get('parent_file_id'):
-                        return True
-                    num += 1
-                return False
+            num = 0
+            list_num = len(lst) - 1
+            while not num > list_num:
+                if self.filename == lst[num].get('name') and parent_folder_id == lst[num].get('parent_file_id'):
+                    return True
+                num += 1
+            return False
         except Exception as e:
             print(e)
             print_warn('Step: Search 发生错误，程序将在暂停60秒后继续执行')
@@ -151,7 +150,7 @@ class AliyunDrive:
                 res.raise_for_status()
 
 
-    def complete(self, file_id, upload_id, realpath, path, filepath):
+    def complete(self, file_id, upload_id):
         complete_data = {
             "drive_id": self.drive_id,
             "file_id": file_id,
@@ -167,14 +166,13 @@ class AliyunDrive:
             complete_post_json = complete_post.json()
             if complete_post_json.get('code') == 'AccessTokenInvalid':
                 if self.token_refresh():
-                    return self.complete(file_id, upload_id, realpath, path, filepath)
+                    return self.complete(file_id, upload_id)
                 print_error('无法刷新AccessToken，准备退出。Step: Complete')
                 print(complete_post_json.get('code'))
                 exit()
             s = time.time() - self.start_time
             if 'file_id' in complete_post_json:
                 print_success(f'【{self.filename}】上传成功！消耗{s}秒')
-                move_after_finish(realpath=realpath, path=path, filepath=filepath)
                 return True
             else:
                 print_warn(f'【{self.filename}】上传失败！消耗{s}秒')
@@ -183,7 +181,7 @@ class AliyunDrive:
             print(e)
             print_warn('Step: Complete 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
-            return file_id, upload_id, realpath, path, filepath
+            return file_id, upload_id
 
 
     def create_folder(self, folder_name, parent_folder_id):
