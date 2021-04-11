@@ -78,8 +78,17 @@ except Exception as e:
 
 
 if len(sys.argv) == 3:
+    # 目录上传
     if os.path.isdir(sys.argv[1]):
-        # 目录上传
+        # 上传一级目录下的文件
+        L_PATH = format_path(sys.argv[1])
+        R_PATH = format_path(sys.argv[2])
+        drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
+        drive.token_refresh()
+        for file in os.listdir(L_PATH):
+            if os.path.isfile(os.path.join(L_PATH, file)):
+                upload_file(L_PATH, file)
+
         for root, dirs, files in os.walk(sys.argv[1], topdown=True):
             # 上传嵌套目录下的文件
             for dir in dirs:
@@ -97,17 +106,6 @@ if len(sys.argv) == 3:
                 drive.token_refresh()
                 for file in file_list:
                     upload_file(L_PATH, file)
-            # 上传一级目录文件
-            file_list = []
-            for file in files:
-                if root == sys.argv[1]:
-                    file_list.append(file)
-            L_PATH = format_path(sys.argv[1])
-            R_PATH = format_path(sys.argv[2])
-            drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
-            drive.token_refresh()
-            for file in file_list:
-                upload_file(L_PATH, file)
     else:
         # 单文件上传
         L_PATH = os.path.dirname(sys.argv[1])

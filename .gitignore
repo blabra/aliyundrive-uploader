@@ -10,3 +10,4 @@ venv
 log
 task.json
 finish
+.vscode
