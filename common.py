@@ -32,12 +32,12 @@ def print_info(message):
 
 
 def print_warn(message):
-    log(message)
+    log_error(message)
     print('\033[7;30;33m{message}\033[0m'.format(message=message))
 
 
 def print_error(message):
-    log(message)
+    log_error(message)
     print('\033[7;30;31m{message}\033[0m'.format(message=message))
 
 
@@ -50,9 +50,19 @@ def date(timestamp):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
 
 
-def log(message):
-    file = os.getcwd() + '/log/' + time.strftime("%Y-%m-%d", time.localtime()) + '.log'
+def log_error(message):
+    file = (os.getcwd() + '/log/' + time.strftime("%Y-%m-%d", time.localtime())
+             + 'error.log')
     if not os.path.exists(os.path.dirname(file)):
         os.mkdir(os.path.dirname(file))
     with open(file, 'a') as f:
-        f.write('【{date}】{message}\n'.format(date=date(time.time()), message=message))
+        f.write(f'【{date(time.time())}】{message}\n')
+
+
+def log(message):
+    file = (os.getcwd() + '/log/' + time.strftime("%Y-%m-%d", time.localtime())
+             + 'standard.log')
+    if not os.path.exists(os.path.dirname(file)):
+        os.mkdir(os.path.dirname(file))
+    with open(file, 'a') as f:
+        f.write(f'【{date(time.time())}】{message}\n')

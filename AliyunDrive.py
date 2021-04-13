@@ -56,7 +56,7 @@ class AliyunDrive:
                 num += 1
             return False
         except Exception as e:
-            print(e)
+            print_error(e)
             print_warn('Step: Search 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
             return parent_folder_id
@@ -131,7 +131,7 @@ class AliyunDrive:
                 exit()
             return create_post_json
         except Exception as e:
-            print(e)
+            print_error(e)
             print_warn('Step: Create 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
             return parent_folder_id
@@ -178,7 +178,7 @@ class AliyunDrive:
                 print_warn(f'【{self.filename}】上传失败！消耗{s}秒')
                 return False
         except Exception as e:
-            print(e)
+            print_error(e)
             print_warn('Step: Complete 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
             return file_id, upload_id
@@ -208,7 +208,7 @@ class AliyunDrive:
                 exit()
             return create_post_json.get('file_id')
         except Exception as e:
-            print(e)
+            print_error(e)
             print_warn('Step: Create_Folder 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
             return folder_name, parent_folder_id

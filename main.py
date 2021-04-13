@@ -44,21 +44,26 @@ def upload_file(path, filepath):
     # 创建目录
     parent_folder_id = get_parent_folder_id(R_PATH, filepath)
     # 创建上传
-    if not drive.search(parent_folder_id):
-        create_post_json = drive.create(parent_folder_id)
-        if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
-            print_success(f'【{drive.filename}】秒传成功！消耗{time.time() - drive.start_time}')
+    try:
+        if not drive.search(parent_folder_id):
+            create_post_json = drive.create(parent_folder_id)
+            if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
+                print_success(f'【{drive.filename}】秒传成功！消耗{time.time() - drive.start_time}')
+                return True
+            upload_url = create_post_json['part_info_list'][0]['upload_url']
+            file_id = create_post_json['file_id']
+            upload_id = create_post_json['upload_id']
+            # 上传
+            drive.upload(upload_url)
+            # 提交
+            return drive.complete(file_id=file_id, upload_id=upload_id)
+        else:
+            print_success(f'发现【{drive.filename}】，已跳过。消耗{time.time() - drive.start_time}')
             return True
-        upload_url = create_post_json['part_info_list'][0]['upload_url']
-        file_id = create_post_json['file_id']
-        upload_id = create_post_json['upload_id']
-        # 上传
-        drive.upload(upload_url)
-        # 提交
-        return drive.complete(file_id=file_id, upload_id=upload_id)
-    else:
-        print_info(f'发现【{drive.filename}】，已跳过。消耗{time.time() - drive.start_time}')
-        return True
+    except Exception as e:
+        print_error(e)
+        time.sleep(60)
+        return L_PATH, file
 
 
 StartTime = time.time()
@@ -80,6 +85,7 @@ except Exception as e:
 if len(sys.argv) == 3:
     # 目录上传
     if os.path.isdir(sys.argv[1]):
+        count_files = 0
         # 上传一级目录下的文件
         L_PATH = format_path(sys.argv[1])
         R_PATH = format_path(sys.argv[2])
@@ -88,24 +94,29 @@ if len(sys.argv) == 3:
         for file in os.listdir(L_PATH):
             if os.path.isfile(os.path.join(L_PATH, file)):
                 upload_file(L_PATH, file)
+                count_files += 1
 
         for root, dirs, files in os.walk(sys.argv[1], topdown=True):
             # 上传嵌套目录下的文件
             for dir in dirs:
                 # 重定位本地待上传目录
-                L_PATH = format_path(os.path.join(root, dir))
+                lpath = os.path.join(root, dir)
+                L_PATH = format_path(lpath)
                 # 保持远程目录与本地目录结构相同
-                full_rpath = sys.argv[2] + os.sep + os.path.join(root, dir).replace(sys.argv[1], '').lstrip(os.sep)
+                full_rpath = sys.argv[2] + os.sep + lpath.replace(sys.argv[1], '').lstrip(os.sep)
                 R_PATH = format_path(full_rpath)
                 file_list = []
-                for file in os.listdir(os.path.join(root, dir)):
+                for file in os.listdir(lpath):
                     fullpath = os.path.join(L_PATH, file)
                     if os.path.isfile(fullpath):
                         file_list.append(file)
-                drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
-                drive.token_refresh()
-                for file in file_list:
-                    upload_file(L_PATH, file)
+                if file_list != []:
+                    drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
+                    drive.token_refresh()
+                    print_info(f'正在上传{L_PATH}')
+                    for file in file_list:
+                        upload_file(L_PATH, file)
+                        count_files += 1
     else:
         # 单文件上传
         L_PATH = os.path.dirname(sys.argv[1])
@@ -113,14 +124,15 @@ if len(sys.argv) == 3:
         drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
         drive.token_refresh()
         upload_file(L_PATH, os.path.basename(sys.argv[1]))
+        count_files = 1
 else:
     print('请正确输入参数后再运行')
     exit()
 
-# 共完成{len(file_list)}个文件
+# 
 print(f'''=======================================================
 任务开始于{date(StartTime)},结束于{date(time.time())}
-
+共完成{count_files}个文件
 耗时{round(((time.time() - StartTime) / 60), 2)}分钟
 =======================================================''')
 
