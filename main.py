@@ -39,16 +39,19 @@ def get_parent_folder_id(root_path, filepath):
 
 
 def upload_file(path, filepath):
+    set_time = time.perf_counter()
     realpath = os.path.join(path, filepath)
-    drive.load_file(filepath, realpath)
+#    drive.load_file(filepath, realpath)
     # 创建目录
     parent_folder_id = get_parent_folder_id(R_PATH, filepath)
     # 创建上传
     try:
-        if not drive.search(parent_folder_id):
+        if not drive.search(filepath, parent_folder_id):
+            print(f'正在加载【{filepath}】')
+            drive.load_file(filepath, realpath)
             create_post_json = drive.create(parent_folder_id)
             if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
-                print_success(f'【{drive.filename}】秒传成功！消耗{time.time() - drive.start_time}')
+                print_success(f'【{filepath}】秒传成功！消耗{time.perf_counter() - set_time}')
                 return True
             upload_url = create_post_json['part_info_list'][0]['upload_url']
             file_id = create_post_json['file_id']
@@ -58,12 +61,13 @@ def upload_file(path, filepath):
             # 提交
             return drive.complete(file_id=file_id, upload_id=upload_id)
         else:
-            print_success(f'发现【{drive.filename}】，已跳过。消耗{time.time() - drive.start_time}')
+            print_success(f'发现【{filepath}】，已跳过。消耗{time.perf_counter() - set_time}')
             return True
     except Exception as e:
+        print_error(realpath)
         print_error(e)
         time.sleep(60)
-        return L_PATH, file
+        return upload_file(L_PATH, file)
 
 
 StartTime = time.time()
