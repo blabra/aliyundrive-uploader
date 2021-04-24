@@ -11,3 +11,4 @@ log
 task.json
 finish
 .vscode
+*.lprof

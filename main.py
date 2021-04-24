@@ -30,7 +30,6 @@ class myThread(threading.Thread):
         self.FilePath = FilePath
         self.work_queue = workQueue
     
-    
     def run(self):
         print(f'Thread - {self.ThreadId} Running')
         Multi_Threading(self.FilePath, self.work_queue, self.ThreadId)
@@ -43,6 +42,7 @@ def Multi_Threading(FilePath, workQueue, ThreadId):
             file = workQueue.get()
             locker.release()
             upload_file(L_PATH, file, ThreadId)
+            time.sleep(0.5)
         else:
             locker.release()
     time.sleep(0.5)
@@ -146,6 +146,7 @@ if len(sys.argv) == 3:
                 a_thread.start()
                 threads.append(a_thread)
             while not workQueue.empty():
+                time.sleep(5)
                 pass
             exitFlag = True
             for th in threads:
@@ -181,6 +182,7 @@ if len(sys.argv) == 3:
                             a_thread.start()
                             threads.append(a_thread)
                         while not workQueue.empty():
+                            time.sleep(5)
                             pass
                         exitFlag = True
                         for th in threads:
