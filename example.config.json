@@ -2,5 +2,5 @@
   "REFRESH_TOKEN": "refresh_token",
   "DRIVE_ID": "drive_id",
   "MULTITHREADING": false,
-  "MAX_WORKERS": 5
+  "MAX_WORKERS": 2
 }
