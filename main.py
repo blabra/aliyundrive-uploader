@@ -2,16 +2,14 @@
 # +-------------------------------------------------------------------
 # | 阿里云盘上传Python3脚本
 # +-------------------------------------------------------------------
-# | Author: 李小恩 <i@abcyun.cc>
+# |   新手学习Python用
 # +-------------------------------------------------------------------
 import json
 import os
 import sys
-import time, queue, threading
-# from concurrent.futures import ThreadPoolExecutor, as_completed
-from hashlib import sha1
-from common import print_warn, print_error, print_info, print_success, date, format_path, get_hash
-
+import time
+from multiprocessing import Pool, current_process
+from common import print_error, print_info, print_success, date, format_path, chunkIt
 
 if __name__ != '__main__':
     exit()
@@ -19,44 +17,7 @@ if __name__ != '__main__':
 from AliyunDrive import AliyunDrive
 
 
-local = threading.local()
-workQueue = queue.Queue()
-locker = threading.Lock()
-
-class myThread(threading.Thread):
-    def __init__(self, ThreadId, FilePath, workQueue):
-        threading.Thread.__init__(self)
-        self.ThreadId = ThreadId
-        self.FilePath = FilePath
-        self.work_queue = workQueue
-    
-    def run(self):
-        print(f'Thread - {self.ThreadId} Running')
-        Multi_Threading(self.FilePath, self.work_queue, self.ThreadId)
-        print(f'Thread - {self.ThreadId} Stopped')
-
-def Multi_Threading(FilePath, workQueue, ThreadId):
-    while not exitFlag:
-        locker.acquire()
-        if not workQueue.empty():
-            file = workQueue.get()
-            locker.release()
-            upload_file(L_PATH, file, ThreadId)
-            time.sleep(0.5)
-        else:
-            locker.release()
-    time.sleep(0.5)
-
-
-def load_file(filepath, realpath):
-        local.start_time = time.time()
-        local.filepath = filepath
-        local.filename = os.path.basename(realpath)
-        local.hash = get_hash(realpath)
-        local.filesize = os.path.getsize(realpath)
-
-
-def get_parent_folder_id(root_path, filepath, ThreadId):
+def get_parent_folder_id(root_path, filepath):
     filepath_split = (root_path + filepath.lstrip(os.sep)).split(os.sep)
     del filepath_split[len(filepath_split) - 1]
     path_name = os.sep.join(filepath_split)
@@ -67,7 +28,7 @@ def get_parent_folder_id(root_path, filepath, ThreadId):
             for folder in filepath_split:
                 if folder == '':
                     continue
-                parent_folder_id = drive.create_folder(folder, parent_folder_id, filepath, ThreadId)
+                parent_folder_id = drive.create_folder(folder, parent_folder_id)
                 parent_folder_name = parent_folder_name.rstrip(os.sep) + os.sep + folder
                 drive.folder_id_dict[parent_folder_name] = parent_folder_id
     else:
@@ -75,38 +36,43 @@ def get_parent_folder_id(root_path, filepath, ThreadId):
     return parent_folder_id
 
 
-def upload_file(path, filepath, ThreadId):
-    local.filepath = filepath
-    local.set_time = time.perf_counter()
-    local.realpath = os.path.join(path, local.filepath)
+def put_file(L_PATH, file_list):
+    pName = current_process().name
+    print(f'Process {pName} Running')
+    for file in file_list:
+        upload_file(L_PATH, file, pName)
+    print(f'Process {pName} Stopped')
+
+
+def upload_file(path, filepath, pName):
+    set_time = time.perf_counter()
+    realpath = os.path.join(path, filepath)
     # 创建目录
-    locker.acquire()
-    local.parent_folder_id = get_parent_folder_id(R_PATH, local.filepath, ThreadId)
-    locker.release()
+    parent_folder_id = get_parent_folder_id(R_PATH, filepath)
     # 创建上传
     try:
-        if not drive.search(local.filepath, local.parent_folder_id, ThreadId):
-            print(f'Thread-{ThreadId} 正在加载【{filepath}】')
-            load_file(local.filepath, local.realpath)
-            local.create_post_json = drive.create(local.hash, local.filename, local.filesize, local.parent_folder_id, ThreadId)
-            if 'rapid_upload' in local.create_post_json and local.create_post_json['rapid_upload']:
-                print_success(f'Thread-{ThreadId}【{local.filepath}】秒传成功！消耗{time.perf_counter() - local.set_time}')
+        if not drive.search(filepath, parent_folder_id, pName):
+            print(f'{pName} 正在加载【{filepath}】')
+            drive.load_file(filepath, realpath, pName)
+            create_post_json = drive.create(parent_folder_id)
+            if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
+                print_success(f'{pName} 【{filepath}】秒传成功！消耗{time.perf_counter() - set_time}')
                 return True
-            local.upload_url = local.create_post_json['part_info_list'][0]['upload_url']
-            local.file_id = local.create_post_json['file_id']
-            local.upload_id = local.create_post_json['upload_id']
+            upload_url = create_post_json['part_info_list'][0]['upload_url']
+            file_id = create_post_json['file_id']
+            upload_id = create_post_json['upload_id']
             # 上传
-            drive.upload(local.upload_url, local.realpath, ThreadId)
+            drive.upload(upload_url)
             # 提交
-            return drive.complete(local.file_id, local.upload_id, local.filename, local.start_time,ThreadId)
+            return drive.complete(file_id=file_id, upload_id=upload_id)
         else:
-            print_success(f'Thread-{ThreadId} 发现【{local.filepath}】，已跳过。消耗{time.perf_counter() - local.set_time}')
+            print_success(f'{pName} 发现【{filepath}】，已跳过。消耗{time.perf_counter() - set_time}')
             return True
     except Exception as e:
-        print_error(local.realpath)
+        print_error(realpath)
         print_error(e)
         time.sleep(60)
-        return upload_file(L_PATH, file, ThreadId)
+        return upload_file(L_PATH, file, pName)
 
 
 StartTime = time.time()
@@ -134,28 +100,24 @@ if len(sys.argv) == 3:
         R_PATH = format_path(sys.argv[2])
         drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
         drive.token_refresh()
+        file_list = []
         for file in os.listdir(L_PATH):
             if os.path.isfile(os.path.join(L_PATH, file)):
-                workQueue.put(file)
-                count_files += 1
-        if MULTITHREADING:
-            threads = []
-            exitFlag = False
-            for i in range(MAX_WORKERS):
-                a_thread = myThread(i, L_PATH, workQueue)
-                a_thread.start()
-                threads.append(a_thread)
-            while not workQueue.empty():
-                time.sleep(5)
-                pass
-            exitFlag = True
-            for th in threads:
-                th.join()
-        else:
-            while not workQueue.empty():
-                file = workQueue.get()
-                upload_file(L_PATH, file, 0)
-        print('Next Folder')
+                file_list.append(file)
+        if file_list != []:
+            count_files += len(file_list)
+            if MULTITHREADING:
+                chunked_lists = chunkIt(file_list, MAX_WORKERS)
+                p = Pool(MAX_WORKERS)
+                for i in range(MAX_WORKERS):
+                    if chunked_lists[i] and chunked_lists[i] != []:
+                        chunked_list = chunked_lists[i]
+                        p.apply_async(put_file, args=(L_PATH, chunked_list))
+                        time.sleep(1)
+                p.close()
+                p.join()
+            else:
+                put_file(L_PATH, file_list)
 
         for root, dirs, files in os.walk(sys.argv[1], topdown=True):
             # 上传嵌套目录下的文件
@@ -168,30 +130,25 @@ if len(sys.argv) == 3:
                 R_PATH = format_path(full_rpath)
                 file_list = []
                 for file in os.listdir(lpath):
-                    fullpath = os.path.join(L_PATH, file)
-                    if os.path.isfile(fullpath):
-                        workQueue.put(file)
-                        count_files += 1
-                if not workQueue.empty():
+                    if os.path.isfile(os.path.join(L_PATH, file)):
+                        file_list.append(file)
+                if file_list != []:
+                    count_files += len(file_list)
+                    drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
+                    drive.token_refresh()
                     print_info(f'正在上传{L_PATH}')
                     if MULTITHREADING:
-                        exitFlag = False
-                        threads = []
+                        chunked_lists = chunkIt(file_list, MAX_WORKERS)
+                        p = Pool(MAX_WORKERS)
                         for i in range(MAX_WORKERS):
-                            a_thread = myThread(i, L_PATH, workQueue)
-                            a_thread.start()
-                            threads.append(a_thread)
-                        while not workQueue.empty():
-                            time.sleep(5)
-                            pass
-                        exitFlag = True
-                        for th in threads:
-                            th.join()
+                            if chunked_lists[i] and chunked_lists[i] != []:
+                                chunked_list = chunked_lists[i]
+                                p.apply_async(put_file, args=(L_PATH, chunked_list))
+                                time.sleep(1)
+                        p.close()
+                        p.join()
                     else:
-                        while not workQueue.empty():
-                            file = workQueue.get()
-                            upload_file(L_PATH, file, 0)
-                print('Next Folder')
+                        put_file(L_PATH, file_list)
     else:
         # 单文件上传
         L_PATH = os.path.dirname(sys.argv[1])
@@ -204,9 +161,10 @@ else:
     print('请正确输入参数后再运行')
     exit()
 
-
+# 
 print(f'''=======================================================
 任务开始于{date(StartTime)},结束于{date(time.time())}
 共完成{count_files}个文件
 耗时{round(((time.time() - StartTime) / 60), 2)}分钟
 =======================================================''')
+

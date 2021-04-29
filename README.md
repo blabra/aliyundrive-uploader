@@ -1,7 +1,6 @@
 ## 阿里云盘上传脚本
 
-* Author：李小恩
-* Github：https://github.com/Hidove/aliyundrive-uploader
+* 仅作为学习Python的练手
 
 > 如有侵权，请联系我删除
 > 
@@ -14,11 +13,11 @@
 >
 > 保持本地目录结构上传
 >
-> 实验性多线程
+> 实验性多进程
 >
 > 发生网络错误后等待60秒自动重试
 ## 环境要求
-* python3
+* python 3.6
 
 ## 使用方法
 ### 安装
@@ -53,10 +52,10 @@ python3 get-pip.py
 |----------------|---------------------------------|----------------|---|
 | REFRESH_TOKEN  | 阿里云盘刷新的token                 |                |   |
 | DRIVE_ID       | 阿里云盘驱动ID，目前不知道做何使用的，可能后续官方有新想法吧 |                |   |
-| MULTITHREADING | 实验性多线程| true/false     |   |
-| MAX_WORKERS    | 线程池最大线程数，请根据自己机器填写              | 5              |   |
+| MULTITHREADING | 实验性多进程| true/false     |   |
+| MAX_WORKERS    | 进程池最大进程数，请根据自己机器填写              | 5              |   |
 
-> 
+> PS: 单个进程消耗 12 - 30M 内存，请自行斟酌增加进程
 >
 ### 运行
 

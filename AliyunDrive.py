@@ -2,7 +2,7 @@
 # +-------------------------------------------------------------------
 # | 阿里云盘API
 # +-------------------------------------------------------------------
-# | Author: 李小恩 <i@abcyun.cc>
+# | 新手学习Python用
 # +-------------------------------------------------------------------
 import json
 import os
@@ -13,9 +13,7 @@ from tqdm import tqdm
 
 requests.packages.urllib3.disable_warnings()
 from UploadChunksIterator import UploadChunksIterator
-from common import print_warn, print_info, print_error, print_success
-
-
+from common import print_warn, print_info, print_error, print_success, get_hash
 class AliyunDrive:
 
     def __init__(self, drive_id, root_path, refresh_token, folder_id_dict=None):
@@ -25,9 +23,12 @@ class AliyunDrive:
         self.drive_id = drive_id
         self.root_path = root_path
         self.refresh_token = refresh_token
+        self.realpath = None
+        self.filename = None
+        self.hash = None
     
 
-    def search(self, filepath, parent_folder_id, ThreadId):
+    def search(self, filepath, parent_folder_id, pName):
         post_payload = {
             'drive_id': self.drive_id,
             'limit': 100,
@@ -54,11 +55,21 @@ class AliyunDrive:
                 num += 1
             return False
         except Exception as e:
-            print_warn(f'Thread-{ThreadId} --【{filepath}】发生错误')
+            print_warn(f'{pName} 【{filepath}】发生错误')
             print_error(e)
-            print_warn(f'Thread-{ThreadId} --Step: Search 发生错误，程序将在暂停60秒后继续执行')
+            print_warn(f'{pName} Step: Search 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
-            return self.search(filepath, parent_folder_id, ThreadId)
+            return self.search(filepath, parent_folder_id, pName)
+
+
+    def load_file(self, filepath, realpath, pName):
+        self.start_time = time.time()
+        self.filepath = filepath
+        self.realpath = realpath
+        self.filename = os.path.basename(realpath)
+        self.hash = get_hash(self.realpath)
+        self.filesize = os.path.getsize(self.realpath)
+        self.pName = pName
 
 
     def token_refresh(self):
@@ -99,17 +110,17 @@ class AliyunDrive:
             return self.token_refresh()
 
 
-    def create(self, hash, filename, filesize, parent_file_id, ThreadId):
+    def create(self, parent_folder_id):
         create_data = {
             "auto_rename": True,
-            "content_hash": hash,
+            "content_hash": self.hash,
             "content_hash_name": 'sha1',
             "drive_id": self.drive_id,
             "hidden": False,
-            "name": filename,
-            "parent_file_id": parent_file_id,
+            "name": self.filename,
+            "parent_file_id": parent_folder_id,
             "type": "file",
-            "size": filesize
+            "size": self.filesize
         }
         try:
             create_post = requests.post(
@@ -122,23 +133,23 @@ class AliyunDrive:
             create_post_json = create_post.json()
             if create_post_json.get('code') == 'AccessTokenInvalid':
                 if self.token_refresh():
-                    return self.create(hash, filename, filesize, parent_file_id, ThreadId)
+                    return self.create(parent_file_id)
                 print(create_post_json.get('code'))
                 print_error('无法刷新AccessToken，准备退出。Step: Create')
                 exit()
             return create_post_json
         except Exception as e:
-            print_warn(f'Thread-{ThreadId} --【{filename}】发生错误')
+            print_warn(f'{self.pName} 【{self.filename}】发生错误')
             print_error(e)
-            print_warn(f'Thread-{ThreadId} --Step: Create 发生错误，程序将在暂停60秒后继续执行')
+            print_warn(f'{self.pName} Step: Create 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
-            return self.create(hash, filename, filesize, parent_file_id, ThreadId)
+            return self.create(parent_folder_id)
 
 
-    def upload(self, upload_url, realpath, ThreadId):
-        with open(realpath, "rb") as f:
+    def upload(self, upload_url):
+        with open(self.realpath, "rb") as f:
             total_size = os.fstat(f.fileno()).st_size
-            f = tqdm.wrapattr(f, "read", desc=f'Thread-{ThreadId}-正在上传', miniters=1, total=total_size, ascii=True)
+            f = tqdm.wrapattr(f, "read", desc=f'{self.pName}正在上传', miniters=1, total=total_size, ascii=True)
             with f as f_iter:
                 res = requests.put(
                     url=upload_url,
@@ -148,7 +159,7 @@ class AliyunDrive:
                 res.raise_for_status()
 
 
-    def complete(self, file_id, upload_id, filename, start_time, ThreadId):
+    def complete(self, file_id, upload_id):
         complete_data = {
             "drive_id": self.drive_id,
             "file_id": file_id,
@@ -165,26 +176,26 @@ class AliyunDrive:
             complete_post_json = complete_post.json()
             if complete_post_json.get('code') == 'AccessTokenInvalid':
                 if self.token_refresh():
-                    return self.complete(file_id, upload_id, filename, start_time, ThreadId)
+                    return self.complete(file_id, upload_id)
                 print_error('无法刷新AccessToken，准备退出。Step: Complete')
                 print(complete_post_json.get('code'))
                 exit()
-            s = time.time() - start_time
+            s = time.time() - self.start_time
             if 'file_id' in complete_post_json:
-                print_success(f'Thread-{ThreadId} --【{filename}】上传成功！消耗{s}秒')
+                print_success(f'{self.pName} 【{self.filename}】上传成功！消耗{s}秒')
                 return True
             else:
-                print_warn(f'Thread-{ThreadId} --【{filename}】上传失败！消耗{s}秒')
+                print_warn(f'{self.pName} 【{self.filename}】上传失败！消耗{s}秒')
                 return False
         except Exception as e:
-            print_warn(f'Thread-{ThreadId} --【{filename}】发生错误')
+            print_warn(f'{self.pName} 【{self.filename}】发生错误')
             print_error(e)
-            print_warn(f'Thread-{ThreadId} --Step: Complete 发生错误，程序将在暂停60秒后继续执行')
+            print_warn(f'{self.pName} Step: Complete 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
-            return self.complete(file_id, upload_id, filename, start_time, ThreadId)
+            return self.complete(file_id, upload_id)
 
 
-    def create_folder(self, folder_name, parent_folder_id, filepath, ThreadId):
+    def create_folder(self, folder_name, parent_folder_id):
         create_data = {
             "drive_id": self.drive_id,
             "parent_file_id": parent_folder_id,
@@ -203,14 +214,14 @@ class AliyunDrive:
             create_post_json = create_post.json()
             if create_post_json.get('code') == 'AccessTokenInvalid':
                 if self.token_refresh():
-                    return self.create_folder(folder_name, parent_folder_id, filepath, ThreadId)
+                    return self.create_folder(folder_name, parent_folder_id)
                 print_error('无法刷新AccessToken，准备退出。Step: Create Folder')
                 print(create_post_json.get('code'))
                 exit()
             return create_post_json.get('file_id')
         except Exception as e:
-            print_warn(f'Thread-{ThreadId} --【{filepath}】发生错误')
+            print_warn(f'{self.pName} 【{self.filename}】发生错误')
             print_error(e)
-            print_warn(f'Thread-{ThreadId} --Step: Create_Folder 发生错误，程序将在暂停60秒后继续执行')
+            print_warn(f'{self.pName} Step: Create_Folder 发生错误，程序将在暂停60秒后继续执行')
             time.sleep(60)
-            return self.create_folder(folder_name, parent_folder_id, filepath, ThreadId)
+            return self.create_folder(folder_name, parent_folder_id)

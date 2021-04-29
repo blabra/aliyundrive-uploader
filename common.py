@@ -2,7 +2,7 @@
 # +-------------------------------------------------------------------
 # | 公共函数类
 # +-------------------------------------------------------------------
-# | Author: 李小恩 <i@abcyun.cc>
+# | 新手学习Python用
 # +-------------------------------------------------------------------
 import hashlib
 import os
@@ -20,6 +20,11 @@ def get_hash(filepath):
             sha1.update(data)
         return sha1.hexdigest()
 
+
+def chunkIt(a, n):
+    n = min(n, len(a))
+    k, m = divmod(len(a), n)
+    return list(a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
 
 def format_path(path):
     return path.replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep) + os.sep
