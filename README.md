@@ -1,7 +1,6 @@
 ## 阿里云盘上传脚本
 
-* Author：李小恩
-* Github：https://github.com/Hidove/aliyundrive-uploader
+* 本 Fork 仅作为新手学习Python练手之用
 
 > 如有侵权，请联系我删除
 > 
@@ -15,6 +14,8 @@
 > 保持本地目录结构上传
 >
 > 实验性多线程
+>
+> 实验性多进程（process 分支）
 >
 > 发生网络错误后等待60秒自动重试
 ## 环境要求
