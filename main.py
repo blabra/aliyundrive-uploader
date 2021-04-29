@@ -38,10 +38,10 @@ def get_parent_folder_id(root_path, filepath):
 
 def put_file(L_PATH, file_list):
     pName = current_process().name
-    print(f'Process {pName} Running')
+    print(f'{pName} Running')
     for file in file_list:
         upload_file(L_PATH, file, pName)
-    print(f'Process {pName} Stopped')
+    print(f'{pName} Stopped')
 
 
 def upload_file(path, filepath, pName):
@@ -73,6 +73,18 @@ def upload_file(path, filepath, pName):
         print_error(e)
         time.sleep(60)
         return upload_file(L_PATH, file, pName)
+
+
+def MultiProcess(L_PATH, file_list, workers):
+    chunked_lists = chunkIt(file_list, MAX_WORKERS)
+    p = Pool(MAX_WORKERS)
+    for i in range(MAX_WORKERS):
+        if chunked_lists[i] and chunked_lists[i] != []:
+            chunked_list = chunked_lists[i]
+            p.apply_async(put_file, args=(L_PATH, chunked_list))
+            time.sleep(1)
+    p.close()
+    p.join()
 
 
 StartTime = time.time()
@@ -107,15 +119,7 @@ if len(sys.argv) == 3:
         if file_list != []:
             count_files += len(file_list)
             if MULTITHREADING:
-                chunked_lists = chunkIt(file_list, MAX_WORKERS)
-                p = Pool(MAX_WORKERS)
-                for i in range(MAX_WORKERS):
-                    if chunked_lists[i] and chunked_lists[i] != []:
-                        chunked_list = chunked_lists[i]
-                        p.apply_async(put_file, args=(L_PATH, chunked_list))
-                        time.sleep(1)
-                p.close()
-                p.join()
+                MultiProcess(L_PATH, file_list, MAX_WORKERS)
             else:
                 put_file(L_PATH, file_list)
 
@@ -138,15 +142,7 @@ if len(sys.argv) == 3:
                     drive.token_refresh()
                     print_info(f'正在上传{L_PATH}')
                     if MULTITHREADING:
-                        chunked_lists = chunkIt(file_list, MAX_WORKERS)
-                        p = Pool(MAX_WORKERS)
-                        for i in range(MAX_WORKERS):
-                            if chunked_lists[i] and chunked_lists[i] != []:
-                                chunked_list = chunked_lists[i]
-                                p.apply_async(put_file, args=(L_PATH, chunked_list))
-                                time.sleep(1)
-                        p.close()
-                        p.join()
+                        MultiProcess(L_PATH, file_list, MAX_WORKERS)
                     else:
                         put_file(L_PATH, file_list)
     else:
@@ -161,10 +157,9 @@ else:
     print('请正确输入参数后再运行')
     exit()
 
-# 
+
 print(f'''=======================================================
 任务开始于{date(StartTime)},结束于{date(time.time())}
 共完成{count_files}个文件
 耗时{round(((time.time() - StartTime) / 60), 2)}分钟
 =======================================================''')
-
