@@ -24,31 +24,30 @@ def get_hash(filepath):
 def chunkIt(a, n):
     n = min(n, len(a))
     k, m = divmod(len(a), n)
-    return list(a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
+    return [a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)]
 
 def format_path(path):
     return path.replace('/', os.sep).replace('\\\\', os.sep).rstrip(os.sep) + os.sep
 
 
 def print_info(message):
-    i = random.randint(34, 37)
     log(message)
-    print('\033[7;30;{i}m{message}\033[0m'.format(message=message, i=i))
+    print(f'\033[7;30;37m{message}\033[0m')
 
 
 def print_warn(message):
     log_error(message)
-    print('\033[7;30;33m{message}\033[0m'.format(message=message))
+    print(f'\033[7;30;33m{message}\033[0m')
 
 
 def print_error(message):
     log_error(message)
-    print('\033[7;30;31m{message}\033[0m'.format(message=message))
+    print(f'\033[7;30;31m{message}\033[0m')
 
 
 def print_success(message):
     log(message)
-    print('\033[7;30;32m{message}\033[0m'.format(message=message))
+    print(f'\033[7;30;32m{message}\033[0m')
 
 
 def date(timestamp):

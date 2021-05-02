@@ -72,6 +72,28 @@ class AliyunDrive:
         self.pName = pName
 
 
+    def save_task(self, L_PATH):
+        with open(os.getcwd() + "/task.json", 'a+') as f:
+            stats = {"filename": self.filename,
+                    "hash": self.hash,
+                    "L_PATH": L_PATH,
+                    "R_PATH": self.root_path}
+            f.writelines(json.dumps(stats, ensure_ascii=False) + '\n')
+
+
+    def checkif(self, L_PATH):
+        with open(os.getcwd() + "/task.json", 'r') as f:
+            line = f.readline()
+            while line and line != '':
+                r = json.loads(line)
+                if self.hash == r['hash'] and L_PATH == r['L_PATH']:
+                    if self.root_path == r['R_PATH']:
+                        return True
+                line = f.readline()
+        self.save_task(L_PATH)
+        return False
+
+
     def token_refresh(self):
         data = {"refresh_token": self.refresh_token,
                 "grant_type": "refresh_token"

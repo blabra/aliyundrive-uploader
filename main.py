@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+# # -*- coding: utf-8 -*-
 # +-------------------------------------------------------------------
 # | 阿里云盘上传Python3脚本
 # +-------------------------------------------------------------------
@@ -47,26 +48,22 @@ def put_file(L_PATH, file_list):
 def upload_file(path, filepath, pName):
     set_time = time.perf_counter()
     realpath = os.path.join(path, filepath)
-    # 创建目录
     parent_folder_id = get_parent_folder_id(R_PATH, filepath)
-    # 创建上传
     try:
         if not drive.search(filepath, parent_folder_id, pName):
             print(f'{pName} 正在加载【{filepath}】')
             drive.load_file(filepath, realpath, pName)
+            if drive.checkif(path):
+                print_success(f'{pName} 本地发现【{filepath}】,已跳过，消耗{time.perf_counter()-set_time}')
+                return True
             create_post_json = drive.create(parent_folder_id)
             if 'rapid_upload' in create_post_json and create_post_json['rapid_upload']:
                 print_success(f'{pName} 【{filepath}】秒传成功！消耗{time.perf_counter() - set_time}')
                 return True
-            upload_url = create_post_json['part_info_list'][0]['upload_url']
-            file_id = create_post_json['file_id']
-            upload_id = create_post_json['upload_id']
-            # 上传
-            drive.upload(upload_url)
-            # 提交
-            return drive.complete(file_id=file_id, upload_id=upload_id)
+            drive.upload(create_post_json['part_info_list'][0]['upload_url'])
+            return drive.complete(create_post_json['file_id'], create_post_json['upload_id'])
         else:
-            print_success(f'{pName} 发现【{filepath}】，已跳过。消耗{time.perf_counter() - set_time}')
+            print_success(f'{pName} 云端发现【{filepath}】，已跳过。消耗{time.perf_counter() - set_time}')
             return True
     except Exception as e:
         print_error(realpath)
@@ -94,9 +91,7 @@ try:
         config = json.loads(f.read())
         REFRESH_TOKEN = config.get('REFRESH_TOKEN')
         DRIVE_ID = config.get('DRIVE_ID')
-        # 启用多线程
         MULTITHREADING = bool(config.get('MULTITHREADING'))
-        # 线程池最大线程数
         MAX_WORKERS = config.get('MAX_WORKERS')
 except Exception as e:
     print_error('请配置好config.json后重试')
