@@ -146,7 +146,7 @@ if len(sys.argv) == 3:
         R_PATH = format_path(sys.argv[2])
         drive = AliyunDrive(DRIVE_ID, R_PATH, REFRESH_TOKEN)
         drive.token_refresh()
-        upload_file(L_PATH, os.path.basename(sys.argv[1]))
+        upload_file(L_PATH, os.path.basename(sys.argv[1]), current_process().name)
         count_files = 1
 else:
     print('请正确输入参数后再运行')
